@@ -1,0 +1,30 @@
+{
+  "name": "craft-antd-designer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 4173",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.1.0",
+    "@craftjs/core": "^0.2.12",
+    "antd": "^5.29.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^24.9.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "jsdom": "^27.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.8",
+    "vitest": "^4.0.4"
+  }
+}
