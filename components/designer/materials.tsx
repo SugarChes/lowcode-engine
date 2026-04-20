@@ -242,17 +242,17 @@ const bindCraftDropRef = (dom: any, connect: any) => {
   }
 };
 
-const useDropHint = () => {
-  const activeTargetRef = React.useRef<HTMLElement | null>(null);
+let activeDropHintTarget: HTMLElement | null = null;
 
+const useDropHint = () => {
   React.useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
     }
 
     const hideHint = () => {
-      activeTargetRef.current?.classList.remove('designer-drop-active');
-      activeTargetRef.current = null;
+      activeDropHintTarget?.classList.remove('designer-drop-active');
+      activeDropHintTarget = null;
     };
 
     window.addEventListener('drop', hideHint, true);
@@ -265,19 +265,27 @@ const useDropHint = () => {
   }, []);
 
   const showHint = (target: HTMLElement) => {
-    if (activeTargetRef.current && activeTargetRef.current !== target) {
-      activeTargetRef.current.classList.remove('designer-drop-active');
+    if (activeDropHintTarget === target) {
+      return;
     }
 
-    activeTargetRef.current = target;
+    if (activeDropHintTarget && target.contains(activeDropHintTarget)) {
+      return;
+    }
+
+    if (activeDropHintTarget) {
+      activeDropHintTarget.classList.remove('designer-drop-active');
+    }
+
+    activeDropHintTarget = target;
     target.classList.add('designer-drop-active');
   };
 
   const hideHint = (target: HTMLElement) => {
     target.classList.remove('designer-drop-active');
 
-    if (activeTargetRef.current === target) {
-      activeTargetRef.current = null;
+    if (activeDropHintTarget === target) {
+      activeDropHintTarget = null;
     }
   };
 
@@ -301,7 +309,11 @@ const useDropHint = () => {
   return { dropHintHandlers };
 };
 
-const EmptySlot: React.FC = () => <div className="designer-empty-slot" />;
+const EmptySlot: React.FC<{ className?: string }> = ({ className }) => (
+  <div
+    className={className ? `designer-empty-slot ${className}` : 'designer-empty-slot'}
+  />
+);
 
 const FieldLabel: React.FC<{ text?: string }> = ({ text }) => {
   const normalizedText = typeof text === 'string' ? text.trim() : text;
@@ -472,23 +484,38 @@ export const Container: UserComponent<ContainerProps> = ({
 }) => {
   const {
     connectors: { connect, drag },
+    id,
     childCount,
   } = useNode((node) => ({
+    id: node.id,
     childCount: node.data.nodes.length,
   }));
+  const isRoot = id === 'ROOT';
   const hasChildren = React.Children.count(children) > 0 || childCount > 0;
   const { dropHintHandlers } = useDropHint();
 
   return (
     <div
-      ref={(dom) => bindCraftRef(dom, connect, drag)}
-      className="designer-surface"
+      ref={(dom) => {
+        if (!isRoot) {
+          bindCraftRef(dom, connect, drag);
+        }
+      }}
+      className={
+        isRoot ? 'designer-surface designer-root-surface' : 'designer-surface'
+      }
       style={getBoxStyle(props, {
         display: 'flex',
         flexDirection: 'column',
+        minHeight: props.minHeight,
       })}
     >
       <div
+        ref={(dom) => {
+          if (isRoot) {
+            bindCraftDropRef(dom, connect);
+          }
+        }}
         {...dropHintHandlers}
         style={{
           position: 'relative',

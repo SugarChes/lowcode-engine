@@ -54,7 +54,6 @@ export const RenderNode = ({ render }) => {
     moveable: query.node(node.id).isDraggable(),
     deletable: query.node(node.id).isDeletable(),
     parent: node.data.parent,
-    props: node.data.props,
   }));
 
   const currentRef = React.useRef<HTMLDivElement | null>(null);
@@ -89,14 +88,12 @@ export const RenderNode = ({ render }) => {
   }, [dom, getPos]);
 
   React.useEffect(() => {
-    document
-      .querySelector('.craftjs-renderer')
-      .addEventListener('scroll', scroll);
+    const renderer = document.querySelector('.craftjs-renderer');
+
+    renderer?.addEventListener('scroll', scroll, { passive: true });
 
     return () => {
-      document
-        .querySelector('.craftjs-renderer')
-        .removeEventListener('scroll', scroll);
+      renderer?.removeEventListener('scroll', scroll);
     };
   }, [scroll]);
 

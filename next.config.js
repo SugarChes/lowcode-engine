@@ -1,7 +1,9 @@
 const path = require('path');
+const isStaticExport = process.env.NEXT_OUTPUT_MODE === 'export';
 
 module.exports = {
-  output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
+  output: isStaticExport ? 'export' : undefined,
+  devIndicators: false,
   webpack: (config, { dev }) => {
     const fileLoaderRule = config.module.rules.find((rule) =>
       rule.test?.test?.('.svg')

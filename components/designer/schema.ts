@@ -667,11 +667,11 @@ export const parseAppSchemaText = (jsonText: string): AppSchema => {
   try {
     parsed = JSON.parse(jsonText);
   } catch (error) {
-    throw new Error('Schema JSON 格式不正确。');
+    throw new Error('页面配置 JSON 格式不正确。');
   }
 
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.pages)) {
-    throw new Error('导入内容不是有效的 AppSchema。');
+    throw new Error('导入内容不是有效的页面配置。');
   }
 
   return normalizeAppSchema(parsed);

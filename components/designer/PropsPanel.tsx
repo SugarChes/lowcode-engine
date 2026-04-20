@@ -118,7 +118,7 @@ const TabsItemsEditor: React.FC<{
             }}
           />
           <Input
-            addonBefore="Key"
+            addonBefore="标识"
             value={item.key}
             onChange={(event) => {
               const nextItems = [...items];

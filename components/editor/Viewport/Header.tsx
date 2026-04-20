@@ -3,25 +3,26 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   RedoOutlined,
+  RobotOutlined,
   UndoOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { Button, Space, Tag, Typography } from 'antd';
+import { Button, Typography } from 'antd';
 import React from 'react';
 
 export type HeaderProps = {
-  pageName: string;
   saveStatusText: string;
   onOpenImport: () => void;
   onOpenExport: () => void;
+  onOpenAiAssistant: () => void;
   onReset: () => void;
 };
 
 export const Header: React.FC<HeaderProps> = ({
-  pageName,
   saveStatusText,
   onOpenImport,
   onOpenExport,
+  onOpenAiAssistant,
   onReset,
 }) => {
   const { canUndo, canRedo, actions } = useEditor((_, query) => ({
@@ -35,36 +36,36 @@ export const Header: React.FC<HeaderProps> = ({
         <Typography.Title level={5} style={{ margin: 0 }}>
           低代码设计器
         </Typography.Title>
-        <Space size={8}>
-          <Tag color="blue">{pageName}</Tag>
-          <Typography.Text type="secondary">{saveStatusText}</Typography.Text>
-        </Space>
+        <Typography.Text type="secondary">{saveStatusText}</Typography.Text>
       </div>
-      <Space size={8} wrap>
+      <div className="designer-header__actions">
         <Button
           icon={<UndoOutlined />}
           disabled={!canUndo}
+          title="撤销"
+          aria-label="撤销"
           onClick={() => actions.history.undo()}
-        >
-          撤销
-        </Button>
+        />
         <Button
           icon={<RedoOutlined />}
           disabled={!canRedo}
+          title="重做"
+          aria-label="重做"
           onClick={() => actions.history.redo()}
-        >
-          重做
+        />
+        <Button icon={<RobotOutlined />} onClick={onOpenAiAssistant}>
+          AI 布局
         </Button>
         <Button icon={<UploadOutlined />} onClick={onOpenImport}>
-          导入 Schema
+          导入
         </Button>
         <Button type="primary" icon={<DownloadOutlined />} onClick={onOpenExport}>
-          导出 Schema
+          导出
         </Button>
         <Button danger icon={<DeleteOutlined />} onClick={onReset}>
-          重置画布
+          重置
         </Button>
-      </Space>
+      </div>
     </header>
   );
 };

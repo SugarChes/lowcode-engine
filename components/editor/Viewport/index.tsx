@@ -17,33 +17,15 @@ export type ViewportProps = {
 
 export const Viewport: React.FC<ViewportProps> = ({
   children,
-  pageName,
   saveStatusText,
   onOpenImport,
   onOpenExport,
   onReset,
 }) => {
-  const {
-    enabled,
-    connectors,
-    actions: { setOptions },
-  } = useEditor((state) => ({
+  const [sidebarActiveKey, setSidebarActiveKey] = React.useState('props');
+  const { enabled } = useEditor((state) => ({
     enabled: state.options.enabled,
   }));
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      setTimeout(() => {
-        setOptions((options) => {
-          options.enabled = true;
-        });
-      }, 200);
-    });
-  }, [setOptions]);
 
   return (
     <div className="viewport">
@@ -51,26 +33,26 @@ export const Viewport: React.FC<ViewportProps> = ({
         <Toolbox />
         <div className="page-container designer-main">
           <Header
-            pageName={pageName}
             saveStatusText={saveStatusText}
             onOpenImport={onOpenImport}
             onOpenExport={onOpenExport}
+            onOpenAiAssistant={() => setSidebarActiveKey('ai')}
             onReset={onReset}
           />
           <div
             className={cx('craftjs-renderer designer-canvas-scroll', {
               'bg-renderer-gray': enabled,
             })}
-            ref={(ref) => {
-              connectors.select(connectors.hover(ref, null), null);
-            }}
           >
             <div className="designer-canvas-stage">
               <div className="designer-canvas-frame">{children}</div>
             </div>
           </div>
         </div>
-        <Sidebar />
+        <Sidebar
+          activeKey={sidebarActiveKey}
+          onActiveKeyChange={setSidebarActiveKey}
+        />
       </div>
     </div>
   );

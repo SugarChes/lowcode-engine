@@ -242,6 +242,7 @@ function App() {
     if (typeof window !== 'undefined') {
       writeStoredAppSchema(window.localStorage, nextSchema);
     }
+
   }, []);
 
   const handleCopySchema = React.useCallback(async () => {
@@ -251,13 +252,13 @@ function App() {
     }
 
     await navigator.clipboard.writeText(stringifyAppSchema(appSchema));
-    messageApi.success('Schema 已复制到剪贴板。');
+    messageApi.success('页面配置已复制到剪贴板。');
   }, [appSchema, messageApi]);
 
   const handleConfirmImport = React.useCallback(() => {
     try {
       const parsedSchema = parseAppSchemaText(importText);
-      applySchema(parsedSchema, 'Schema 已导入并应用。');
+      applySchema(parsedSchema, '页面配置已导入并应用。');
       setImportOpen(false);
     } catch (error: any) {
       messageApi.error(error?.message || '导入失败，请检查 JSON 内容。');
@@ -292,7 +293,7 @@ function App() {
     (error: Error) => {
       if (frameRecoverCountRef.current > 0) {
         messageApi.error(
-          error?.message || '画布加载失败，请检查当前 Schema。'
+          error?.message || '画布加载失败，请检查当前页面配置。'
         );
         return;
       }
@@ -367,7 +368,7 @@ function App() {
       )}
 
       <Modal
-        title="导出 AppSchema"
+        title="导出页面配置"
         open={exportOpen}
         onCancel={() => setExportOpen(false)}
         okText="复制"
@@ -384,7 +385,7 @@ function App() {
       </Modal>
 
       <Modal
-        title="导入 AppSchema"
+        title="导入页面配置"
         open={importOpen}
         onCancel={() => setImportOpen(false)}
         onOk={handleConfirmImport}
@@ -397,7 +398,7 @@ function App() {
           autoSize={{ minRows: 16, maxRows: 24 }}
           value={importText}
           onChange={(event) => setImportText(event.target.value)}
-          placeholder="请粘贴 AppSchema JSON"
+          placeholder="请粘贴页面配置 JSON"
         />
       </Modal>
     </>

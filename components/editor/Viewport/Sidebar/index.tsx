@@ -1,24 +1,30 @@
 import { Layers } from '@craftjs/layers';
-import { OrderedListOutlined, SettingOutlined } from '@ant-design/icons';
-import { Tabs, Typography } from 'antd';
+import {
+  OrderedListOutlined,
+  RobotOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
+import { Tabs } from 'antd';
 import React from 'react';
 
 import { PropsPanel } from '../../../designer/PropsPanel';
+import { AiAssistantPanel } from './AiAssistantPanel';
 
-export const Sidebar = () => {
+export type SidebarProps = {
+  activeKey: string;
+  onActiveKeyChange: (activeKey: string) => void;
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeKey,
+  onActiveKeyChange,
+}) => {
   return (
     <aside className="designer-sidebar">
-      <div className="designer-sidebar__header">
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          属性与结构
-        </Typography.Title>
-        <Typography.Text type="secondary">
-          在这里配置组件属性并查看层级树
-        </Typography.Text>
-      </div>
       <Tabs
         className="designer-sidebar__tabs"
-        defaultActiveKey="props"
+        activeKey={activeKey}
+        onChange={onActiveKeyChange}
         items={[
           {
             key: 'props',
@@ -43,6 +49,16 @@ export const Sidebar = () => {
                 <Layers expandRootOnLoad={true} />
               </div>
             ),
+          },
+          {
+            key: 'ai',
+            label: (
+              <span>
+                <RobotOutlined />
+                AI
+              </span>
+            ),
+            children: <AiAssistantPanel />,
           },
         ]}
       />
