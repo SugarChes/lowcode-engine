@@ -21,6 +21,7 @@ import { RenderNode, Viewport } from '../components/editor';
 const { TextArea } = Input;
 
 const EDITOR_INSTANCE_KEY = 'designer-editor-resolver-v2';
+const AI_PREVIEW_STATUS_TEXT = 'AI 预览中，未保存';
 
 const getResolvedName = (node: any) => {
   const type = node?.type;
@@ -91,6 +92,12 @@ type FrameErrorBoundaryState = {
   hasError: boolean;
 };
 
+type AiPreviewState = {
+  schema: AppSchema;
+  targetSummary: string;
+  message: string;
+};
+
 class FrameErrorBoundary extends React.Component<
   FrameErrorBoundaryProps,
   FrameErrorBoundaryState
@@ -110,9 +117,7 @@ class FrameErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="designer-frame-recovering">
-          正在修复画布数据，请稍候...
-        </div>
+        <div className="designer-frame-recovering">正在修复画布数据，请稍候...</div>
       );
     }
 
@@ -151,6 +156,7 @@ function App() {
   const [appSchema, setAppSchema] = React.useState<AppSchema>(() =>
     createEmptyAppSchema()
   );
+  const [previewState, setPreviewState] = React.useState<AiPreviewState | null>(null);
   const [frameData, setFrameData] = React.useState(() =>
     appSchemaToCraftNodes(createEmptyAppSchema())
   );
@@ -161,31 +167,74 @@ function App() {
   const [importOpen, setImportOpen] = React.useState(false);
   const [importText, setImportText] = React.useState('');
   const latestSchemaRef = React.useRef(appSchema);
+  const previewStateRef = React.useRef<AiPreviewState | null>(null);
   const frameRecoverCountRef = React.useRef(0);
+  const programmaticFrameUpdateRef = React.useRef(false);
+  const programmaticFrameTimerRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
-    latestSchemaRef.current = appSchema;
-  }, [appSchema]);
+    previewStateRef.current = previewState;
+    latestSchemaRef.current = previewState?.schema || appSchema;
+  }, [appSchema, previewState]);
 
-  const applySchema = React.useCallback(
-    (nextSchema: AppSchema, successMessage?: string) => {
-      const nextFrameData = appSchemaToCraftNodes(nextSchema);
+  React.useEffect(
+    () => () => {
+      if (programmaticFrameTimerRef.current !== null) {
+        window.clearTimeout(programmaticFrameTimerRef.current);
+      }
+    },
+    []
+  );
 
+  const markProgrammaticFrameUpdate = React.useCallback(() => {
+    programmaticFrameUpdateRef.current = true;
+
+    if (typeof window !== 'undefined') {
+      if (programmaticFrameTimerRef.current !== null) {
+        window.clearTimeout(programmaticFrameTimerRef.current);
+      }
+
+      programmaticFrameTimerRef.current = window.setTimeout(() => {
+        programmaticFrameUpdateRef.current = false;
+        programmaticFrameTimerRef.current = null;
+      }, 80);
+    }
+  }, []);
+
+  const loadSchemaIntoFrame = React.useCallback(
+    (nextSchema: AppSchema) => {
+      latestSchemaRef.current = nextSchema;
+      markProgrammaticFrameUpdate();
+      setFrameData(appSchemaToCraftNodes(nextSchema));
+      setFrameVersion((current) => current + 1);
+    },
+    [markProgrammaticFrameUpdate]
+  );
+
+  const commitSchema = React.useCallback(
+    (
+      nextSchema: AppSchema,
+      options?: {
+        successMessage?: string;
+        statusText?: string;
+      }
+    ) => {
+      previewStateRef.current = null;
+      setPreviewState(null);
       latestSchemaRef.current = nextSchema;
       setAppSchema(nextSchema);
-      setFrameData(nextFrameData);
-      setFrameVersion((current) => current + 1);
-      setSaveStatusText(getSaveStatusText());
+      loadSchemaIntoFrame(nextSchema);
+      setSaveStatusText(options?.statusText || getSaveStatusText());
 
       if (typeof window !== 'undefined') {
         writeStoredAppSchema(window.localStorage, nextSchema);
       }
 
-      if (successMessage) {
-        messageApi.success(successMessage);
+      if (options?.successMessage) {
+        messageApi.success(options.successMessage);
       }
     },
-    [messageApi]
+    [loadSchemaIntoFrame, messageApi]
   );
 
   React.useEffect(() => {
@@ -230,40 +279,63 @@ function App() {
   }, []);
 
   const handleNodesChange = React.useCallback((query: any) => {
+    if (programmaticFrameUpdateRef.current) {
+      return;
+    }
+
     const nextSchema = craftNodesToAppSchema(
       query.getSerializedNodes(),
       latestSchemaRef.current
     );
 
     latestSchemaRef.current = nextSchema;
+
+    if (previewStateRef.current) {
+      const nextPreviewState = {
+        ...previewStateRef.current,
+        schema: nextSchema,
+      };
+
+      previewStateRef.current = nextPreviewState;
+      setPreviewState(nextPreviewState);
+      setSaveStatusText(AI_PREVIEW_STATUS_TEXT);
+      return;
+    }
+
     setAppSchema(nextSchema);
     setSaveStatusText(getSaveStatusText());
 
     if (typeof window !== 'undefined') {
       writeStoredAppSchema(window.localStorage, nextSchema);
     }
-
   }, []);
 
-  const handleCopySchema = React.useCallback(async () => {
-    if (typeof navigator === 'undefined' || !navigator.clipboard) {
-      messageApi.warning('当前环境不支持直接复制。');
-      return;
-    }
+  const handleCopySchema = React.useCallback(
+    async (schemaToCopy: AppSchema) => {
+      if (typeof navigator === 'undefined' || !navigator.clipboard) {
+        messageApi.warning('当前环境不支持直接复制。');
+        return;
+      }
 
-    await navigator.clipboard.writeText(stringifyAppSchema(appSchema));
-    messageApi.success('页面配置已复制到剪贴板。');
-  }, [appSchema, messageApi]);
+      await navigator.clipboard.writeText(stringifyAppSchema(schemaToCopy));
+      messageApi.success('页面配置已复制到剪贴板。');
+    },
+    [messageApi]
+  );
 
   const handleConfirmImport = React.useCallback(() => {
     try {
       const parsedSchema = parseAppSchemaText(importText);
-      applySchema(parsedSchema, '页面配置已导入并应用。');
+
+      frameRecoverCountRef.current = 0;
+      commitSchema(parsedSchema, {
+        successMessage: '页面配置已导入并应用。',
+      });
       setImportOpen(false);
     } catch (error: any) {
       messageApi.error(error?.message || '导入失败，请检查 JSON 内容。');
     }
-  }, [applySchema, importText, messageApi]);
+  }, [commitSchema, importText, messageApi]);
 
   const handleReset = React.useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -271,30 +343,15 @@ function App() {
     }
 
     frameRecoverCountRef.current = 0;
-    applySchema(createEmptyAppSchema(), '画布已重置。');
-    return;
-
-    Modal.confirm({
-      title: '确定要重置画布吗？',
-      content: '当前页面会恢复为一个空白容器，现有布局将被清空。',
-      okText: '重置',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
-      onOk: () => {
-        if (typeof window !== 'undefined') {
-          clearStoredAppSchema(window.localStorage);
-        }
-        applySchema(createEmptyAppSchema(), '画布已重置。');
-      },
+    commitSchema(createEmptyAppSchema(), {
+      successMessage: '画布已重置。',
     });
-  }, [applySchema]);
+  }, [commitSchema]);
 
   const handleFrameRecover = React.useCallback(
     (error: Error) => {
       if (frameRecoverCountRef.current > 0) {
-        messageApi.error(
-          error?.message || '画布加载失败，请检查当前页面配置。'
-        );
+        messageApi.error(error?.message || '画布加载失败，请检查当前页面配置。');
         return;
       }
 
@@ -304,14 +361,68 @@ function App() {
         clearStoredAppSchema(window.localStorage);
       }
 
-      applySchema(createEmptyAppSchema(), '检测到异常草稿，已恢复为空白画布。');
+      commitSchema(createEmptyAppSchema(), {
+        successMessage: '检测到异常草稿，已恢复为空白画布。',
+      });
     },
-    [applySchema, messageApi]
+    [commitSchema, messageApi]
   );
 
+  const handleAiPreviewGenerated = React.useCallback(
+    ({
+      draftSchema,
+      targetSummary,
+      message,
+    }: {
+      draftSchema: AppSchema;
+      targetSummary: string;
+      message: string;
+    }) => {
+      const nextPreviewState = {
+        schema: draftSchema,
+        targetSummary,
+        message,
+      };
+
+      previewStateRef.current = nextPreviewState;
+      setPreviewState(nextPreviewState);
+      latestSchemaRef.current = draftSchema;
+      loadSchemaIntoFrame(draftSchema);
+      setSaveStatusText(AI_PREVIEW_STATUS_TEXT);
+    },
+    [loadSchemaIntoFrame]
+  );
+
+  const handleApplyAiPreview = React.useCallback(() => {
+    const activePreviewState = previewStateRef.current;
+
+    if (!activePreviewState) {
+      return;
+    }
+
+    frameRecoverCountRef.current = 0;
+    commitSchema(activePreviewState.schema, {
+      successMessage: 'AI 预览已应用到画布。',
+    });
+  }, [commitSchema]);
+
+  const handleDiscardAiPreview = React.useCallback(() => {
+    if (!previewStateRef.current) {
+      return;
+    }
+
+    previewStateRef.current = null;
+    setPreviewState(null);
+    latestSchemaRef.current = appSchema;
+    loadSchemaIntoFrame(appSchema);
+    setSaveStatusText('已放弃 AI 预览');
+    messageApi.info('已放弃 AI 预览。');
+  }, [appSchema, loadSchemaIntoFrame, messageApi]);
+
+  const currentSchema = previewState?.schema || appSchema;
   const exportText = React.useMemo(
-    () => stringifyAppSchema(appSchema),
-    [appSchema]
+    () => stringifyAppSchema(currentSchema),
+    [currentSchema]
   );
   const safeFrameData = React.useMemo(
     () => sanitizeFrameDataForResolver(frameData),
@@ -339,32 +450,39 @@ function App() {
           正在加载设计器...
         </div>
       ) : (
-      <Editor
-        key={EDITOR_INSTANCE_KEY}
-        resolver={DESIGNER_RESOLVER}
-        enabled
-        onRender={RenderNode}
-        onNodesChange={handleNodesChange}
-      >
-        <Viewport
-          pageName={appSchema.pages[0]?.name || '设计页面'}
-          saveStatusText={saveStatusText}
-          onOpenImport={() => {
-            setImportText(exportText);
-            setImportOpen(true);
-          }}
-          onOpenExport={() => setExportOpen(true)}
-          onReset={handleReset}
+        <Editor
+          key={EDITOR_INSTANCE_KEY}
+          resolver={DESIGNER_RESOLVER}
+          enabled
+          onRender={RenderNode}
+          onNodesChange={handleNodesChange}
         >
-          <FrameDataSync data={safeFrameData} version={frameVersion} />
-          <FrameErrorBoundary
-            key={`frame-boundary-${frameVersion}`}
-            onRecover={handleFrameRecover}
+          <Viewport
+            pageName={currentSchema.pages[0]?.name || '设计页面'}
+            saveStatusText={saveStatusText}
+            aiSchema={currentSchema}
+            activePageId={currentSchema.pages[0]?.id || 'page-1'}
+            isAiPreviewing={Boolean(previewState)}
+            aiPreviewTargetSummary={previewState?.targetSummary}
+            onAiPreviewGenerated={handleAiPreviewGenerated}
+            onApplyAiPreview={handleApplyAiPreview}
+            onDiscardAiPreview={handleDiscardAiPreview}
+            onOpenImport={() => {
+              setImportText(exportText);
+              setImportOpen(true);
+            }}
+            onOpenExport={() => setExportOpen(true)}
+            onReset={handleReset}
           >
-            <Frame key={frameVersion} data={safeFrameData} />
-          </FrameErrorBoundary>
-        </Viewport>
-      </Editor>
+            <FrameDataSync data={safeFrameData} version={frameVersion} />
+            <FrameErrorBoundary
+              key={`frame-boundary-${frameVersion}`}
+              onRecover={handleFrameRecover}
+            >
+              <Frame key={frameVersion} data={safeFrameData} />
+            </FrameErrorBoundary>
+          </Viewport>
+        </Editor>
       )}
 
       <Modal
@@ -373,7 +491,7 @@ function App() {
         onCancel={() => setExportOpen(false)}
         okText="复制"
         cancelText="关闭"
-        onOk={handleCopySchema}
+        onOk={() => handleCopySchema(currentSchema)}
         width={840}
       >
         <TextArea

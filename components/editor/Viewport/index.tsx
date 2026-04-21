@@ -2,6 +2,7 @@ import { useEditor } from '@craftjs/core';
 import cx from 'classnames';
 import React from 'react';
 
+import type { AppSchema } from '../../designer/schema';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { Toolbox } from './Toolbox';
@@ -10,6 +11,17 @@ export type ViewportProps = {
   children?: React.ReactNode;
   pageName: string;
   saveStatusText: string;
+  aiSchema: AppSchema;
+  activePageId: string;
+  isAiPreviewing: boolean;
+  aiPreviewTargetSummary?: string | null;
+  onAiPreviewGenerated: (payload: {
+    draftSchema: AppSchema;
+    targetSummary: string;
+    message: string;
+  }) => void;
+  onApplyAiPreview: () => void;
+  onDiscardAiPreview: () => void;
   onOpenImport: () => void;
   onOpenExport: () => void;
   onReset: () => void;
@@ -18,6 +30,13 @@ export type ViewportProps = {
 export const Viewport: React.FC<ViewportProps> = ({
   children,
   saveStatusText,
+  aiSchema,
+  activePageId,
+  isAiPreviewing,
+  aiPreviewTargetSummary,
+  onAiPreviewGenerated,
+  onApplyAiPreview,
+  onDiscardAiPreview,
   onOpenImport,
   onOpenExport,
   onReset,
@@ -52,6 +71,15 @@ export const Viewport: React.FC<ViewportProps> = ({
         <Sidebar
           activeKey={sidebarActiveKey}
           onActiveKeyChange={setSidebarActiveKey}
+          aiAssistantProps={{
+            schema: aiSchema,
+            activePageId,
+            isPreviewing: isAiPreviewing,
+            previewTargetSummary: aiPreviewTargetSummary,
+            onPreviewGenerated: onAiPreviewGenerated,
+            onApplyPreview: onApplyAiPreview,
+            onDiscardPreview: onDiscardAiPreview,
+          }}
         />
       </div>
     </div>

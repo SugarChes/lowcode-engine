@@ -8,16 +8,18 @@ import { Tabs } from 'antd';
 import React from 'react';
 
 import { PropsPanel } from '../../../designer/PropsPanel';
-import { AiAssistantPanel } from './AiAssistantPanel';
+import { AiAssistantPanel, AiAssistantPanelProps } from './AiAssistantPanel';
 
 export type SidebarProps = {
   activeKey: string;
   onActiveKeyChange: (activeKey: string) => void;
+  aiAssistantProps: AiAssistantPanelProps;
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeKey,
   onActiveKeyChange,
+  aiAssistantProps,
 }) => {
   return (
     <aside className="designer-sidebar">
@@ -58,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 AI
               </span>
             ),
-            children: <AiAssistantPanel />,
+            children: <AiAssistantPanel {...aiAssistantProps} />,
           },
         ]}
       />
